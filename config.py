@@ -1,45 +1,19 @@
-"""
-Configuration settings for AgroScan AI.
-Handles API keys, model configuration, and reusable constants.
-"""
-
+# config.py
 import os
-import streamlit as st
 
-# -------------------------------------------------------------------
-# Load API Keys
-# -------------------------------------------------------------------
+# Database configuration
+DATABASE_NAME = "agroscan.db"
+EXCEL_FILE = "agroscan_farm_records_july2025_june2026.xlsx"
 
-try:
-    # Running on Streamlit Cloud
-    GROQ_API_KEY = st.secrets["GROQ_API_KEY"]
-except Exception:
-    # Running locally
-    GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+# Business rules
+CRATE_PRICE = 3500  # Naira per crate
 
-if not GROQ_API_KEY:
-    raise ValueError(
-        "GROQ_API_KEY not found. "
-        "Please add it to Streamlit Secrets or your local environment."
-    )
-
-# -------------------------------------------------------------------
-# Environment Variables
-# -------------------------------------------------------------------
-
-os.environ["GROQ_API_KEY"] = GROQ_API_KEY
-
-# -------------------------------------------------------------------
-# Model Configuration
-# -------------------------------------------------------------------
-
+# Model configuration
 MODEL_NAME = "groq/meta-llama/llama-4-scout-17b-16e-instruct"
 
-# -------------------------------------------------------------------
-# Database Configuration
-# -------------------------------------------------------------------
+# Environment variables
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 
-DATABASE_NAME = "agroscan.db"
-
-EXCEL_FILE = "agroscan_farm_records_july2025_june2026.xlsx"
-```
+# App configuration
+APP_TITLE = "AgroScan AI Farm Manager"
+APP_ICON = "🐔"
