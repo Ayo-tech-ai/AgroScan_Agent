@@ -1,44 +1,32 @@
-# Python cache
-
-**pycache**/
+# Python
+__pycache__/
 *.py[cod]
 *$py.class
-
-# Virtual environments
-
-.venv/
-venv/
+*.so
+.Python
 env/
-
-# Streamlit secrets
-
-.streamlit/secrets.toml
-
-# Environment variables
-
-.env
+venv/
+ENV/
+env.bak/
+venv.bak/
 
 # Database
+*.db
+*.sqlite
+*.sqlite3
 
-agroscan.db
+# Streamlit
+.streamlit/secrets.toml
 
-# Jupyter Notebook checkpoints
-
-.ipynb_checkpoints/
-
-# macOS
-
-.DS_Store
-
-# VS Code
-
+# IDE
 .vscode/
-
-# PyCharm
-
 .idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
 
 # Logs
-
 *.log
-
