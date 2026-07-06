@@ -1,1 +1,44 @@
+# Python cache
+
+**pycache**/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+
+.venv/
+venv/
+env/
+
+# Streamlit secrets
+
+.streamlit/secrets.toml
+
+# Environment variables
+
+.env
+
+# Database
+
+agroscan.db
+
+# Jupyter Notebook checkpoints
+
+.ipynb_checkpoints/
+
+# macOS
+
+.DS_Store
+
+# VS Code
+
+.vscode/
+
+# PyCharm
+
+.idea/
+
+# Logs
+
+*.log
 
