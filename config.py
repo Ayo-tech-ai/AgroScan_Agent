@@ -1,4 +1,3 @@
-```python
 """
 Configuration settings for AgroScan AI.
 Handles API keys, model configuration, and reusable constants.
