@@ -1087,4 +1087,362 @@ any tool. Tools only accept exact dates — never pass a relative term
 directly to a tool.
 
 Your responsibility is to help manage poultry farms by
-using the available Skills
+using the available Skills and Tools behind the scenes.
+
+GENERAL RULES
+
+• Never expose internal implementation details.
+
+• Never mention Skills.
+
+• Never mention Tool calls.
+
+• Never mention FunctionTools.
+
+• Never invent farm records.
+
+• Never invent production figures.
+
+• Never invent revenue.
+
+• Treat the Farm Record Book as the single source of truth.
+
+• To record or update daily farm data, call the
+record_daily_farm_data tool directly. This tool is
+always available.
+
+• To look up a specific date's record, call get_farm_record
+directly with an exact date. This tool is always available.
+
+• To find the most recent record on file (when the farmer doesn't
+name a specific date), call get_most_recent_farm_record directly.
+This tool is always available.
+
+• To summarize performance over a period (totals, profit/loss),
+call get_farm_summary directly with an exact start and end date.
+This tool is always available.
+
+• All monetary values must be reported using the ₦ (Naira) symbol,
+never $ or any other currency symbol.
+
+• Load the farm-record-management skill to guide how you
+interpret and communicate about farm records, lookups, and
+summaries.
+
+• Load the farm-manager-core skill to guide your identity,
+tone, and communication style.
+
+• Never simulate tool execution.
+
+• Wait for tool results before responding.
+
+• If required information is missing,
+ask only for the missing information.
+
+Maintain a friendly, professional and practical tone.
+""",
+
+        tools=[
+            farm_record_tool,
+            farm_record_lookup_tool,
+            most_recent_record_tool,
+            farm_summary_tool,
+            agroscan_toolset,
+        ]
+    )
+
+    # --------------------------------------------------------
+    # SESSION SERVICE, SESSION, AND RUNNER
+    # --------------------------------------------------------
+
+    session_service = InMemorySessionService()
+
+    unique_user_id = str(uuid.uuid4())
+
+    agroscan_session = session_service.create_session_sync(
+        app_name="agroscan_app",
+        user_id=unique_user_id
+    )
+
+    runner = Runner(
+        app_name="agroscan_app",
+        agent=farm_manager_agent,
+        session_service=session_service
+    )
+
+    # --------------------------------------------------------
+    # STORE EVERYTHING IN SESSION STATE
+    # --------------------------------------------------------
+
+    st.session_state.runner = runner
+    st.session_state.session_service = session_service
+    st.session_state.agroscan_session = agroscan_session
+    st.session_state.user_id = unique_user_id
+    st.session_state.chat_history = []
+
+    st.session_state.initialized = True
+
+
+# ============================================================
+# ASYNC BRIDGE
+# ============================================================
+
+def run_agent_turn(message: str):
+    return asyncio.run(
+        st.session_state.runner.run_debug(
+            message,
+            user_id=st.session_state.user_id,
+            session_id=st.session_state.agroscan_session.id,
+            quiet=True
+        )
+    )
+
+
+# ============================================================
+# BEAUTIFUL HEADER FROM SECOND APP.PY (with 🐔 instead of 🌾)
+# ============================================================
+
+st.markdown("""
+<div class="harvest-header">
+    <h1>🐔 AgroScan</h1>
+    <div class="subtitle">Your Farm's Record Book — Poultry Management, Made Conversational</div>
+    <div class="badge-container">
+        <span class="badge">🚀 AI-Powered</span>
+        <span class="badge">📊 Smart Analytics</span>
+        <span class="badge">🌿 Sustainable Farming</span>
+    </div>
+</div>
+<div class="harvest-divider"></div>
+""", unsafe_allow_html=True)
+
+if st.session_state.get("import_summary"):
+    st.info(f"📖 {st.session_state.import_summary}")
+
+
+# ============================================================
+# SIDEBAR - DISPLAY FARM RECORDS (from first app.py)
+# ============================================================
+
+_sidebar_service = FarmRecordService(DATABASE_NAME)
+
+with st.sidebar:
+    # Logo/Header
+    st.markdown("""
+    <div style="text-align: center; padding: 1rem 0;">
+        <div style="font-size: 3rem;">🌾</div>
+        <h2 style="color: white; font-family: 'Playfair Display', serif; margin: 0;">
+            Farm Records
+        </h2>
+        <p style="color: rgba(255,255,255,0.7); font-size: 0.85rem; margin: 0;">
+            📊 Poultry Production Dashboard
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.divider()
+    
+    # Get all records
+    all_records = _sidebar_service.get_all_records()
+    
+    if all_records:
+        # Display summary stats with agricultural icons
+        total_days = len(all_records)
+        total_crates = sum(r["crates_collected"] for r in all_records)
+        total_revenue = sum(r["revenue"] for r in all_records)
+        total_expenses = sum(r["expenses"] for r in all_records)
+        net_profit = total_revenue - total_expenses
+        
+        st.markdown("### 📈 Key Metrics")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("📅 Days Recorded", f"{total_days}")
+            st.metric("🥚 Total Crates", f"{total_crates:,}")
+            st.metric("💰 Net Profit", f"₦{net_profit:,.2f}")
+        with col2:
+            st.metric("🐔 Total Revenue", f"₦{total_revenue:,.2f}")
+            st.metric("💸 Total Expenses", f"₦{total_expenses:,.2f}")
+            avg_crates = total_crates / total_days if total_days > 0 else 0
+            st.metric("📊 Avg/Day", f"{avg_crates:.1f} crates")
+        
+        st.divider()
+        
+        # Date filter for records
+        st.markdown("### 🔍 Filter Records")
+        
+        # Get min and max dates from records
+        dates = [datetime.strptime(r["record_date"], "%Y-%m-%d").date() for r in all_records]
+        min_date = min(dates)
+        max_date = max(dates)
+        
+        # Date range selector
+        col1, col2 = st.columns(2)
+        with col1:
+            start_date = st.date_input("📅 From", min_date, min_value=min_date, max_value=max_date)
+        with col2:
+            end_date = st.date_input("📅 To", max_date, min_value=min_date, max_value=max_date)
+        
+        # Filter records by date range
+        if start_date and end_date:
+            filtered_records = [
+                r for r in all_records
+                if start_date <= datetime.strptime(r["record_date"], "%Y-%m-%d").date() <= end_date
+            ]
+        else:
+            filtered_records = all_records
+        
+        # Display records count with leaf icon
+        st.markdown(f"""
+        <div style="display: flex; justify-content: space-between; align-items: center; margin: 8px 0;">
+            <span style="color: rgba(255,255,255,0.7); font-size: 0.85rem;">🌿 Showing {len(filtered_records)} records</span>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        # Convert to DataFrame for display
+        if filtered_records:
+            df = pd.DataFrame(filtered_records)
+            df["record_date"] = pd.to_datetime(df["record_date"]).dt.strftime("%Y-%m-%d")
+            
+            # Select columns to display
+            display_cols = ["record_date", "bird_count", "crates_collected", 
+                           "feed_consumed_kg", "revenue", "expenses"]
+            
+            # Format currency columns
+            df_display = df[display_cols].copy()
+            df_display["revenue"] = df_display["revenue"].apply(lambda x: f"₦{x:,.2f}")
+            df_display["expenses"] = df_display["expenses"].apply(lambda x: f"₦{x:,.2f}")
+            
+            # Rename columns for display
+            df_display.columns = ["📅 Date", "🐔 Birds", "🥚 Crates", "🌾 Feed (kg)", "💰 Revenue", "💸 Expenses"]
+            
+            # Display as a table with scroll
+            st.dataframe(
+                df_display,
+                use_container_width=True,
+                height=350,
+                hide_index=True
+            )
+            
+            # Option to view full record details
+            st.divider()
+            st.markdown("### 📋 Record Details")
+            
+            # Dropdown to select a date
+            selected_date_str = st.selectbox(
+                "Select a date to view details",
+                options=sorted([r["record_date"] for r in filtered_records], reverse=True),
+                format_func=lambda x: datetime.strptime(x, "%Y-%m-%d").strftime("%B %d, %Y")
+            )
+            
+            if selected_date_str:
+                record = _sidebar_service.get_record_by_date(selected_date_str)
+                if record:
+                    with st.expander("📄 Full Record Details", expanded=True):
+                        st.markdown(f"""
+                        <div style="padding: 8px;">
+                            <p><strong>📅 Date:</strong> {datetime.strptime(record['record_date'], '%Y-%m-%d').strftime('%B %d, %Y')}</p>
+                            <p><strong>🐔 Bird Count:</strong> {record['bird_count']:,}</p>
+                            <p><strong>🥚 Crates Collected:</strong> {record['crates_collected']:,}</p>
+                            <p><strong>🌾 Feed Consumed:</strong> {record['feed_consumed_kg']:.2f} kg</p>
+                            <p><strong>💰 Revenue:</strong> ₦{record['revenue']:,.2f}</p>
+                            <p><strong>💸 Expenses:</strong> ₦{record['expenses']:,.2f}</p>
+                            <p><strong>📊 Net:</strong> ₦{record['revenue'] - record['expenses']:,.2f}</p>
+                            {f"<p><strong>📝 Notes:</strong> {record['notes']}</p>" if record.get('notes') else ""}
+                        </div>
+                        """, unsafe_allow_html=True)
+        else:
+            st.info("🌱 No records in selected date range.")
+        
+        # Export option
+        st.divider()
+        if st.button("📥 Export to CSV", use_container_width=True):
+            if all_records:
+                export_df = pd.DataFrame(all_records)
+                csv = export_df.to_csv(index=False)
+                st.download_button(
+                    label="💾 Download CSV",
+                    data=csv,
+                    file_name=f"agroscan_records_{date.today().isoformat()}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
+    else:
+        st.info("🌱 No farm records available yet.")
+        st.markdown("""
+        <div style="text-align: center; padding: 1rem 0;">
+            <p style="color: rgba(255,255,255,0.7); font-size: 0.9rem;">
+                Start by adding your first record<br>
+                through the chat below! 💬
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    # Sidebar footer
+    st.markdown(
+        '<div class="agroscan-sidebar-footer">AgroScan AI Farm Manager<br>Built by Ayoola Tobi</div>',
+        unsafe_allow_html=True
+    )
+
+
+# ============================================================
+# RENDER EXISTING CHAT HISTORY
+# ============================================================
+
+if not st.session_state.chat_history:
+    # Welcome message (from first app.py)
+    st.markdown("""
+    <div class="welcome-container">
+        <div class="icon">🌾</div>
+        <h3>Welcome to AgroScan AI!</h3>
+        <p>Start a conversation to manage your poultry farm. I can help you record daily data, view farm performance, and provide insights about your operations.</p>
+        <div class="welcome-tags">
+            <span>📊 View records</span>
+            <span>📝 Add daily data</span>
+            <span>📈 Get summaries</span>
+            <span>💰 Check profit</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+for role, text in st.session_state.chat_history:
+    with st.chat_message(role):
+        st.markdown(text)
+
+
+# ============================================================
+# HANDLE NEW MESSAGE
+# ============================================================
+
+user_message = st.chat_input("💬 Talk to AgroScan about your farm...")
+
+if user_message:
+    st.session_state.chat_history.append(("user", user_message))
+    with st.chat_message("user"):
+        st.markdown(user_message)
+
+    with st.chat_message("assistant"):
+        with st.spinner("🌱 AgroScan is analyzing..."):
+            try:
+                events = run_agent_turn(user_message)
+                final_event = events[-1]
+
+                if final_event.content and final_event.content.parts:
+                    response = " ".join(
+                        part.text
+                        for part in final_event.content.parts
+                        if part.text
+                    )
+                else:
+                    response = "No response was generated."
+
+            except Exception as e:
+                response = (
+                    "I ran into an issue processing that. "
+                    "Could you try rephrasing, or ask again?"
+                )
+                st.session_state.setdefault("last_error", str(e))
+
+            st.markdown(response)
+
+    st.session_state.chat_history.append(("assistant", response))
+    st.rerun()
