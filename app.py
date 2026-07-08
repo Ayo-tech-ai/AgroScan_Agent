@@ -5,7 +5,7 @@ import asyncio
 import uuid
 import os
 
-from datetime import date, datetime 
+from datetime import date, datetime
 from typing import Optional
 
 from google.adk.agents import Agent
@@ -28,17 +28,14 @@ st.set_page_config(
 
 
 # ============================================================
-# CUSTOM CSS - Professional Agricultural Theme (from first app.py)
-# With the beautiful header from the second app.py
+# CUSTOM CSS - Professional Agricultural Theme
 # ============================================================
 def apply_custom_css():
     st.markdown("""
     <style>
-        /* Import agricultural-friendly fonts */
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@700&display=swap');
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap');
         
-        /* Main theme colors - Earthy agricultural palette */
         :root {
             --primary-green: #2E7D32;
             --primary-green-light: #4CAF50;
@@ -56,12 +53,10 @@ def apply_custom_css():
             --text-secondary: #5D4037;
         }
         
-        /* Main container styling */
         .main {
             background: linear-gradient(135deg, #FEFCF3 0%, #F5F0E8 100%);
         }
         
-        /* Sidebar styling - Woodland theme */
         section[data-testid="stSidebar"] {
             background: linear-gradient(180deg, #2E7D32 0%, #1B5E20 100%);
             color: white;
@@ -112,9 +107,6 @@ def apply_custom_css():
             font-weight: 700;
         }
         
-        /* ======================================== */
-        /* BEAUTIFUL HEADER FROM SECOND APP.PY */
-        /* ======================================== */
         .harvest-header {
             background: linear-gradient(135deg, #2D5A27 0%, #4A7C3F 50%, #C49A3C 100%);
             padding: 2rem 2.5rem;
@@ -190,27 +182,7 @@ def apply_custom_css():
             margin: 0.5rem 0 1.8rem 0;
             opacity: 0.6;
         }
-        /* ======================================== */
-        /* END OF BEAUTIFUL HEADER */
-        /* ======================================== */
-
-        /* Card styling for metrics in sidebar */
-        .metric-card {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 12px;
-            padding: 16px;
-            margin: 8px 0;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            transition: all 0.3s ease;
-        }
         
-        .metric-card:hover {
-            background: rgba(255, 255, 255, 0.15);
-            transform: translateY(-2px);
-        }
-        
-        /* Chat message styling */
         .stChatMessage {
             border-radius: 16px !important;
             box-shadow: 0 2px 8px rgba(0,0,0,0.05) !important;
@@ -227,7 +199,6 @@ def apply_custom_css():
             border-color: #E0E0E0 !important;
         }
         
-        /* Input box styling */
         .stChatInput textarea {
             border-radius: 12px !important;
             border: 2px solid #A5D6A7 !important;
@@ -242,7 +213,6 @@ def apply_custom_css():
             box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1) !important;
         }
         
-        /* Dataframe styling */
         .stDataFrame {
             border-radius: 12px !important;
             overflow: hidden !important;
@@ -270,7 +240,6 @@ def apply_custom_css():
             font-size: 0.8rem !important;
         }
         
-        /* Divider styling */
         hr {
             border: none !important;
             height: 2px !important;
@@ -278,7 +247,6 @@ def apply_custom_css():
             margin: 2rem 0 !important;
         }
         
-        /* Expander styling */
         .streamlit-expanderHeader {
             background: #E8F5E9 !important;
             border-radius: 12px !important;
@@ -295,20 +263,17 @@ def apply_custom_css():
             padding: 16px !important;
         }
         
-        /* Info box styling */
         .stAlert {
             border-radius: 12px !important;
             border-left: 4px solid #2E7D32 !important;
             background: #E8F5E9 !important;
         }
         
-        /* Spinner styling */
         .stSpinner > div {
             border-color: #2E7D32 !important;
             border-right-color: transparent !important;
         }
         
-        /* Scrollbar styling */
         ::-webkit-scrollbar {
             width: 8px;
             height: 8px;
@@ -328,7 +293,6 @@ def apply_custom_css():
             background: #2E7D32;
         }
         
-        /* Responsive design */
         @media (max-width: 768px) {
             .harvest-header h1 {
                 font-size: 2rem !important;
@@ -341,7 +305,6 @@ def apply_custom_css():
             }
         }
         
-        /* Welcome message styling */
         .welcome-container {
             text-align: center;
             padding: 2.5rem 1.5rem;
@@ -387,7 +350,6 @@ def apply_custom_css():
             border: 1px solid rgba(46, 125, 50, 0.1);
         }
         
-        /* Sidebar footer */
         .agroscan-sidebar-footer {
             font-family: 'Inter', sans-serif;
             font-size: 0.75rem;
@@ -409,6 +371,214 @@ apply_custom_css()
 # ============================================================
 DATABASE_NAME = "agroscan.db"
 EXCEL_FILE = "agroscan_farm_records_july2025_june2026.xlsx"
+
+
+# ============================================================
+# FarmRecordService - MOVED TO TOP LEVEL
+# ============================================================
+class FarmRecordService:
+    CRATE_PRICE = 3500
+
+    def __init__(self, database_name):
+        self.database_name = database_name
+
+    def get_connection(self):
+        return sqlite3.connect(self.database_name)
+
+    def get_total_records(self):
+        connection = self.get_connection()
+        cursor = connection.cursor()
+        cursor.execute("SELECT COUNT(*) FROM farm_records")
+        total = cursor.fetchone()[0]
+        connection.close()
+        return total
+
+    def record_exists(self, record_date):
+        connection = self.get_connection()
+        cursor = connection.cursor()
+        cursor.execute(
+            "SELECT COUNT(*) FROM farm_records WHERE record_date=?",
+            (record_date,)
+        )
+        exists = cursor.fetchone()[0] > 0
+        connection.close()
+        return exists
+
+    def get_record_by_date(self, record_date):
+        connection = self.get_connection()
+        connection.row_factory = sqlite3.Row
+        cursor = connection.cursor()
+        cursor.execute(
+            "SELECT * FROM farm_records WHERE record_date=?",
+            (record_date,)
+        )
+        row = cursor.fetchone()
+        connection.close()
+        return dict(row) if row else None
+
+    def get_previous_record(self, record_date):
+        connection = self.get_connection()
+        connection.row_factory = sqlite3.Row
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            SELECT * FROM farm_records
+            WHERE record_date < ?
+            ORDER BY record_date DESC
+            LIMIT 1
+            """,
+            (record_date,)
+        )
+        row = cursor.fetchone()
+        connection.close()
+        return dict(row) if row else None
+
+    def get_most_recent_record(self):
+        connection = self.get_connection()
+        connection.row_factory = sqlite3.Row
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            SELECT * FROM farm_records
+            ORDER BY record_date DESC
+            LIMIT 1
+            """
+        )
+        row = cursor.fetchone()
+        connection.close()
+        return dict(row) if row else None
+
+    def get_summary(self, start_date, end_date):
+        connection = self.get_connection()
+        connection.row_factory = sqlite3.Row
+        cursor = connection.cursor()
+        cursor.execute(
+            """
+            SELECT
+                COUNT(*) AS days_recorded,
+                COALESCE(SUM(crates_collected), 0) AS total_crates,
+                COALESCE(SUM(feed_consumed_kg), 0) AS total_feed_kg,
+                COALESCE(SUM(revenue), 0) AS total_revenue,
+                COALESCE(SUM(expenses), 0) AS total_expenses
+            FROM farm_records
+            WHERE record_date BETWEEN ? AND ?
+            """,
+            (start_date, end_date)
+        )
+        row = cursor.fetchone()
+        connection.close()
+
+        result = dict(row)
+        result["net_profit"] = result["total_revenue"] - result["total_expenses"]
+        result["start_date"] = start_date
+        result["end_date"] = end_date
+        return result
+
+    def get_all_records(self):
+        connection = self.get_connection()
+        connection.row_factory = sqlite3.Row
+        cursor = connection.cursor()
+        cursor.execute("SELECT * FROM farm_records ORDER BY record_date")
+        rows = cursor.fetchall()
+        connection.close()
+        return [dict(row) for row in rows]
+
+    def validate_daily_record(self, bird_count, crates_collected):
+        eggs = crates_collected * 30
+        maximum_eggs = bird_count * 0.95
+        if eggs > maximum_eggs:
+            return (
+                False,
+                f"{crates_collected} crates ({eggs} eggs) appears "
+                f"unrealistic for {bird_count} birds."
+            )
+        return True, "Validation passed."
+
+    def record_daily_farm_data(
+        self, crates_collected=None, bird_count=None,
+        feed_consumed_kg=None, expenses=None,
+        notes=None, record_date=None
+    ):
+        if record_date is None:
+            record_date = date.today().isoformat()
+
+        existing_record = self.get_record_by_date(record_date)
+        previous_day_record = self.get_previous_record(record_date)
+
+        reference_record = existing_record or previous_day_record
+
+        if reference_record:
+            if crates_collected is None:
+                crates_collected = reference_record["crates_collected"]
+            if bird_count is None:
+                bird_count = reference_record["bird_count"]
+            if feed_consumed_kg is None:
+                feed_consumed_kg = reference_record["feed_consumed_kg"]
+            if expenses is None:
+                expenses = reference_record["expenses"]
+            if notes is None:
+                notes = reference_record["notes"]
+        else:
+            if crates_collected is None:
+                raise ValueError("crates_collected is required for the first record.")
+            if bird_count is None:
+                raise ValueError("bird_count is required for the first record.")
+            if feed_consumed_kg is None:
+                raise ValueError("feed_consumed_kg is required for the first record.")
+            if expenses is None:
+                raise ValueError("expenses is required for the first record.")
+
+        revenue = crates_collected * self.CRATE_PRICE
+
+        valid, message = self.validate_daily_record(bird_count, crates_collected)
+        if not valid:
+            return {"success": False, "message": message}
+
+        connection = self.get_connection()
+        cursor = connection.cursor()
+
+        if existing_record:
+            cursor.execute(
+                """
+                UPDATE farm_records
+                SET bird_count=?, crates_collected=?, feed_consumed_kg=?,
+                    revenue=?, expenses=?, notes=?
+                WHERE record_date=?
+                """,
+                (bird_count, crates_collected, feed_consumed_kg,
+                 revenue, expenses, notes, record_date)
+            )
+            action = "updated"
+        else:
+            cursor.execute(
+                """
+                INSERT INTO farm_records(
+                    record_date, bird_count, crates_collected,
+                    feed_consumed_kg, revenue, expenses, notes
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (record_date, bird_count, crates_collected,
+                 feed_consumed_kg, revenue, expenses, notes)
+            )
+            action = "recorded"
+
+        connection.commit()
+        connection.close()
+
+        return {
+            "success": True,
+            "action": action,
+            "record_date": record_date,
+            "previous_values": existing_record,
+            "bird_count": bird_count,
+            "crates_collected": crates_collected,
+            "feed_consumed_kg": feed_consumed_kg,
+            "revenue": revenue,
+            "expenses": expenses,
+            "notes": notes,
+            "message": f"Farm record successfully {action}."
+        }
 
 
 # ============================================================
@@ -651,217 +821,6 @@ If the tool reports an error, communicate that error honestly.
     )
 
     # --------------------------------------------------------
-    # FarmRecordService
-    # --------------------------------------------------------
-
-    class FarmRecordService:
-
-        CRATE_PRICE = 3500
-
-        def __init__(self, database_name):
-            self.database_name = database_name
-
-        def get_connection(self):
-            return sqlite3.connect(self.database_name)
-
-        def get_total_records(self):
-            connection = self.get_connection()
-            cursor = connection.cursor()
-            cursor.execute("SELECT COUNT(*) FROM farm_records")
-            total = cursor.fetchone()[0]
-            connection.close()
-            return total
-
-        def record_exists(self, record_date):
-            connection = self.get_connection()
-            cursor = connection.cursor()
-            cursor.execute(
-                "SELECT COUNT(*) FROM farm_records WHERE record_date=?",
-                (record_date,)
-            )
-            exists = cursor.fetchone()[0] > 0
-            connection.close()
-            return exists
-
-        def get_record_by_date(self, record_date):
-            connection = self.get_connection()
-            connection.row_factory = sqlite3.Row
-            cursor = connection.cursor()
-            cursor.execute(
-                "SELECT * FROM farm_records WHERE record_date=?",
-                (record_date,)
-            )
-            row = cursor.fetchone()
-            connection.close()
-            return dict(row) if row else None
-
-        def get_previous_record(self, record_date):
-            connection = self.get_connection()
-            connection.row_factory = sqlite3.Row
-            cursor = connection.cursor()
-            cursor.execute(
-                """
-                SELECT * FROM farm_records
-                WHERE record_date < ?
-                ORDER BY record_date DESC
-                LIMIT 1
-                """,
-                (record_date,)
-            )
-            row = cursor.fetchone()
-            connection.close()
-            return dict(row) if row else None
-
-        def get_most_recent_record(self):
-            connection = self.get_connection()
-            connection.row_factory = sqlite3.Row
-            cursor = connection.cursor()
-            cursor.execute(
-                """
-                SELECT * FROM farm_records
-                ORDER BY record_date DESC
-                LIMIT 1
-                """
-            )
-            row = cursor.fetchone()
-            connection.close()
-            return dict(row) if row else None
-
-        def get_summary(self, start_date, end_date):
-            connection = self.get_connection()
-            connection.row_factory = sqlite3.Row
-            cursor = connection.cursor()
-            cursor.execute(
-                """
-                SELECT
-                    COUNT(*) AS days_recorded,
-                    COALESCE(SUM(crates_collected), 0) AS total_crates,
-                    COALESCE(SUM(feed_consumed_kg), 0) AS total_feed_kg,
-                    COALESCE(SUM(revenue), 0) AS total_revenue,
-                    COALESCE(SUM(expenses), 0) AS total_expenses
-                FROM farm_records
-                WHERE record_date BETWEEN ? AND ?
-                """,
-                (start_date, end_date)
-            )
-            row = cursor.fetchone()
-            connection.close()
-
-            result = dict(row)
-            result["net_profit"] = result["total_revenue"] - result["total_expenses"]
-            result["start_date"] = start_date
-            result["end_date"] = end_date
-            return result
-
-        def get_all_records(self):
-            connection = self.get_connection()
-            connection.row_factory = sqlite3.Row
-            cursor = connection.cursor()
-            cursor.execute("SELECT * FROM farm_records ORDER BY record_date")
-            rows = cursor.fetchall()
-            connection.close()
-            return [dict(row) for row in rows]
-
-        def validate_daily_record(self, bird_count, crates_collected):
-            eggs = crates_collected * 30
-            maximum_eggs = bird_count * 0.95
-            if eggs > maximum_eggs:
-                return (
-                    False,
-                    f"{crates_collected} crates ({eggs} eggs) appears "
-                    f"unrealistic for {bird_count} birds."
-                )
-            return True, "Validation passed."
-
-        def record_daily_farm_data(
-            self, crates_collected=None, bird_count=None,
-            feed_consumed_kg=None, expenses=None,
-            notes=None, record_date=None
-        ):
-            if record_date is None:
-                record_date = date.today().isoformat()
-
-            existing_record = self.get_record_by_date(record_date)
-            previous_day_record = self.get_previous_record(record_date)
-
-            reference_record = existing_record or previous_day_record
-
-            if reference_record:
-                if crates_collected is None:
-                    crates_collected = reference_record["crates_collected"]
-                if bird_count is None:
-                    bird_count = reference_record["bird_count"]
-                if feed_consumed_kg is None:
-                    feed_consumed_kg = reference_record["feed_consumed_kg"]
-                if expenses is None:
-                    expenses = reference_record["expenses"]
-                if notes is None:
-                    notes = reference_record["notes"]
-            else:
-                if crates_collected is None:
-                    raise ValueError("crates_collected is required for the first record.")
-                if bird_count is None:
-                    raise ValueError("bird_count is required for the first record.")
-                if feed_consumed_kg is None:
-                    raise ValueError("feed_consumed_kg is required for the first record.")
-                if expenses is None:
-                    raise ValueError("expenses is required for the first record.")
-
-            revenue = crates_collected * self.CRATE_PRICE
-
-            valid, message = self.validate_daily_record(bird_count, crates_collected)
-            if not valid:
-                return {"success": False, "message": message}
-
-            connection = self.get_connection()
-            cursor = connection.cursor()
-
-            if existing_record:
-                cursor.execute(
-                    """
-                    UPDATE farm_records
-                    SET bird_count=?, crates_collected=?, feed_consumed_kg=?,
-                        revenue=?, expenses=?, notes=?
-                    WHERE record_date=?
-                    """,
-                    (bird_count, crates_collected, feed_consumed_kg,
-                     revenue, expenses, notes, record_date)
-                )
-                action = "updated"
-            else:
-                cursor.execute(
-                    """
-                    INSERT INTO farm_records(
-                        record_date, bird_count, crates_collected,
-                        feed_consumed_kg, revenue, expenses, notes
-                    )
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    (record_date, bird_count, crates_collected,
-                     feed_consumed_kg, revenue, expenses, notes)
-                )
-                action = "recorded"
-
-            connection.commit()
-            connection.close()
-
-            return {
-                "success": True,
-                "action": action,
-                "record_date": record_date,
-                "previous_values": existing_record,
-                "bird_count": bird_count,
-                "crates_collected": crates_collected,
-                "feed_consumed_kg": feed_consumed_kg,
-                "revenue": revenue,
-                "expenses": expenses,
-                "notes": notes,
-                "message": f"Farm record successfully {action}."
-            }
-
-    farm_service = FarmRecordService(DATABASE_NAME)
-
-    # --------------------------------------------------------
     # STRING-COERCION HELPERS
     # --------------------------------------------------------
 
@@ -911,37 +870,12 @@ If the tool reports an error, communicate that error honestly.
         notes: Optional[str] = None,
         record_date: Optional[str] = None,
     ):
-        """
-        Record or update daily poultry farm production.
-
-        Use this action whenever the farmer provides
-        daily production information.
-
-        NOTE: All numeric fields are accepted as text and converted
-        internally to numbers, to tolerate models that pass numeric
-        values as strings.
-
-        If record_date is not provided, it defaults to today's date
-        automatically — do not ask the farmer for the date unless
-        they are referring to a specific past day.
-
-        Business Rules
-
-        - If a record already exists for the date, it is updated —
-          only the fields provided are changed; all other fields,
-          including crates_collected, keep their current values.
-        - If no record exists yet for the date, missing fields are
-          inherited from the most recent prior record. The very
-          first record ever created requires all fields.
-        - Revenue is calculated automatically.
-        - The result includes 'previous_values' (the record's state
-          before this call, or None if this created a new record).
-        """
         parsed_crates = _to_int(crates_collected, "crates_collected")
         parsed_bird_count = _to_int(bird_count, "bird_count")
         parsed_feed = _to_float(feed_consumed_kg, "feed_consumed_kg")
         parsed_expenses = _to_float(expenses, "expenses")
 
+        farm_service = FarmRecordService(DATABASE_NAME)
         return farm_service.record_daily_farm_data(
             crates_collected=parsed_crates,
             bird_count=parsed_bird_count,
@@ -956,21 +890,7 @@ If the tool reports an error, communicate that error honestly.
     # --------------------------------------------------------
 
     def get_farm_record(record_date: str):
-        """
-        Retrieve the farm record for one exact calendar date.
-
-        Use this when the farmer asks about a SPECIFIC date — including
-        relative terms like "yesterday" or "last Tuesday" that you have
-        already converted into an exact date (YYYY-MM-DD) before calling
-        this tool.
-
-        This performs an EXACT match only. If no record exists for that
-        exact date, it returns a clear "no record found" result — it does
-        NOT fall back to the nearest available date.
-
-        Args:
-            record_date: The exact date to look up, in YYYY-MM-DD format.
-        """
+        farm_service = FarmRecordService(DATABASE_NAME)
         record = farm_service.get_record_by_date(record_date)
 
         if record is None:
@@ -991,14 +911,7 @@ If the tool reports an error, communicate that error honestly.
     # --------------------------------------------------------
 
     def get_most_recent_farm_record():
-        """
-        Retrieve the single most recent farm record in the entire record
-        book, regardless of how many days ago it was.
-
-        Use this when the farmer asks something like "what's my last
-        record?" or "show me my most recent entry" — situations where
-        they want the latest available data, not a specific date.
-        """
+        farm_service = FarmRecordService(DATABASE_NAME)
         record = farm_service.get_most_recent_record()
 
         if record is None:
@@ -1011,22 +924,7 @@ If the tool reports an error, communicate that error honestly.
     # --------------------------------------------------------
 
     def get_farm_summary(start_date: str, end_date: str):
-        """
-        Get a summary of farm performance over a date range (inclusive
-        of both start_date and end_date).
-
-        Use this when the farmer asks about totals or profit/loss over
-        a period. Convert relative period references into exact
-        YYYY-MM-DD start and end dates BEFORE calling this tool.
-
-        Returns total crates collected, total feed consumed, total
-        revenue, total expenses, net profit, and days_recorded. If
-        days_recorded is 0, no data exists for that range at all.
-
-        Args:
-            start_date: Start of the range, in YYYY-MM-DD format.
-            end_date: End of the range, in YYYY-MM-DD format.
-        """
+        farm_service = FarmRecordService(DATABASE_NAME)
         return farm_service.get_summary(start_date, end_date)
 
     # --------------------------------------------------------
