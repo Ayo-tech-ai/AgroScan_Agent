@@ -1102,7 +1102,7 @@ def run_agent_turn(message: str):
 
 st.markdown("""
 <div class="harvest-header">
-    <h1>🐔 AgroScan</h1>
+    <h1>🐔 AgroScan_AI</h1>
     <div class="subtitle">Your Farm's Record Book: Smart Poultry Management — Where AI Meets Agriculture</div>
     <div class="badge-container">
         <span class="badge">🚀 AI-Powered</span>
