@@ -6,3 +6,4 @@ orjson
 sentence-transformers
 faiss-cpu
 torchvision
+openpyxl
